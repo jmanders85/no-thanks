@@ -1,7 +1,7 @@
 -module(game).
--export([init/0]).
+-export([start/0]).
 
-init() ->
+start() ->
   rand:seed(exs64, {erlang:phash2([node()]), erlang:monotonic_time(), erlang:unique_integer()}),
   io:format("*************************~n"),
   io:format("* Welcome to No Thanks! *~n"),
@@ -10,7 +10,7 @@ init() ->
   Deck = shuffle(lists:seq(3, 35)),
   {Playing_Deck, _Discards} = lists:split(24, Deck),
 
-  {ok, [Player_Count]} = io:fread("How many players? ", "~d"),
+  Player_Count = prompt_for_player_count(),
   Players = [ {Seat, [], 11} || Seat <- lists:seq(1, Player_Count) ],
 
   game_loop(Playing_Deck, 0, Players, []).
@@ -37,7 +37,7 @@ game_loop([Offer|Deck], Chips, [{Seat, Cards, Stash}|Yet_To_Play], Played) ->
       game_loop(Deck, 0, [{Seat, lists:sort([Offer|Cards]), Stash+Chips}|Yet_To_Play], Played);
 
     _ ->
-      [Action|_] = io:get_line("(T)ake or (D)ecline? "),
+      Action = prompt_for_action(),
 
       case Action of
         $T ->
@@ -45,6 +45,35 @@ game_loop([Offer|Deck], Chips, [{Seat, Cards, Stash}|Yet_To_Play], Played) ->
         $D ->
           game_loop([Offer|Deck], Chips+1, Yet_To_Play, [{Seat, Cards, Stash-1}|Played])
       end
+  end.
+
+
+%% Input helpers
+prompt_for_player_count() ->
+  case io:fread("How many players? ", "~d") of
+    {ok, [Player_Count]} ->
+      case Player_Count =< 5 andalso Player_Count >= 3 of
+        true ->
+          Player_Count;
+        false ->
+          io:format("No Thanks!  Plays 3 to 5 players...~n"),
+          prompt_for_player_count()
+      end;
+    _ -> prompt_for_player_count()
+  end.
+
+
+prompt_for_action() ->
+  [Action|_] = io:get_line("(T)ake or (D)ecline? "),
+
+  case Action of
+    $t -> $T;
+    $T -> $T;
+    $d -> $D;
+    $D -> $D;
+    $q -> exit(quit);
+    $Q -> exit(quit);
+    _ -> prompt_for_action()
   end.
 
 
